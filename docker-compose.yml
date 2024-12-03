@@ -1,14 +1,13 @@
-version: "3"
-
 services:
-
   vsftpd:
+    environment:
+      - FTP_PASS=mypass
+      - PASV_ADDRESS=127.0.0.1
+      - PASV_MIN_PORT=21100
+      - PASV_MAX_PORT=21110
     build:
       context: .
       dockerfile: ./Dockerfile
-      args:
-        USER_ID: 1000
-        GROUP_ID: 1000
     restart: always
     ports:
       - 0.0.0.0:20:20

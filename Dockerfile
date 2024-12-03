@@ -1,46 +1,57 @@
-FROM centos:7
+FROM snowdreamtech/build-essential:3.20.0 AS builder
 
-ARG USER_ID=14
-ARG GROUP_ID=50
+ENV LIBPAM_PWDFILE_VERSION=1.0
 
-MAINTAINER Fer Uria <fauria@gmail.com>
-LABEL Description="vsftpd Docker image based on Centos 7. Supports passive mode and virtual users." \
+WORKDIR /workspace
+
+RUN apk add --no-cache linux-pam-dev \
+    && wget https://github.com/tiwe-de/libpam-pwdfile/archive/refs/tags/v${LIBPAM_PWDFILE_VERSION}.tar.gz \
+    && tar zxvf v${LIBPAM_PWDFILE_VERSION}.tar.gz \
+    && cd libpam-pwdfile-${LIBPAM_PWDFILE_VERSION} \
+    && make
+
+FROM alpine:3.14
+
+LABEL Maintainer="Moritz Hein <moritz.hein@live.de>"
+LABEL Description="vsftpd Docker image based on Alpine Linux 3.14. Supports passive mode." \
 	License="Apache License 2.0" \
 	Usage="docker run -d -p [HOST PORT NUMBER]:21 -v [HOST FTP HOME]:/home/vsftpd fauria/vsftpd" \
 	Version="1.0"
 
-RUN yum -y update && yum clean all
-RUN yum install -y \
-	vsftpd \
-	db4-utils \
-	db4 \
-	iproute && yum clean all
+RUN apk add --no-cache vsftpd
 
-RUN usermod -u ${USER_ID} ftp
-RUN groupmod -g ${GROUP_ID} ftp
+#RUN yum install -y \
+#	vsftpd \
+#	db4-utils \
+#	db4 \
+#	iproute && yum clean all
 
-ENV FTP_USER **String**
-ENV FTP_PASS **Random**
-ENV PASV_ADDRESS **IPv4**
-ENV PASV_ADDR_RESOLVE NO
-ENV PASV_ENABLE YES
-ENV PASV_MIN_PORT 21100
-ENV PASV_MAX_PORT 21110
-ENV XFERLOG_STD_FORMAT NO
-ENV LOG_STDOUT **Boolean**
-ENV FILE_OPEN_MODE 0666
-ENV LOCAL_UMASK 077
-ENV REVERSE_LOOKUP_ENABLE YES
-ENV PASV_PROMISCUOUS NO
-ENV PORT_PROMISCUOUS NO
+ENV LIBPAM_PWDFILE_VERSION=1.0
+
+ENV FTP_USER=**String**
+ENV FTP_PASS=**Random**
+ENV PASV_ADDRESS=**IPv4**
+ENV PASV_ADDR_RESOLVE=NO
+ENV PASV_ENABLE=YES
+ENV PASV_MIN_PORT=21100
+ENV PASV_MAX_PORT=21110
+ENV XFERLOG_STD_FORMAT=YES
+ENV LOG_STDOUT=**Boolean**
+ENV FILE_OPEN_MODE=0666
+ENV LOCAL_UMASK=077
+ENV REVERSE_LOOKUP_ENABLE=YES
+ENV PASV_PROMISCUOUS=NO
+ENV PORT_PROMISCUOUS=NO
 
 COPY vsftpd.conf /etc/vsftpd/
-COPY vsftpd_virtual /etc/pam.d/
+#COPY vsftpd_virtual /etc/pam.d/
 COPY run-vsftpd.sh /usr/sbin/
 
 RUN chmod +x /usr/sbin/run-vsftpd.sh
 RUN mkdir -p /home/vsftpd/
 RUN chown -R ftp:ftp /home/vsftpd/
+
+COPY --from=builder /workspace/libpam-pwdfile-${LIBPAM_PWDFILE_VERSION}/pam_pwdfile.so /usr/lib/security/pam_pwdfile.so
 
 VOLUME /home/vsftpd
 VOLUME /var/log/vsftpd
