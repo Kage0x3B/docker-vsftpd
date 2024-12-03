@@ -1,15 +1,3 @@
-FROM snowdreamtech/build-essential:3.20.0 AS builder
-
-ENV LIBPAM_PWDFILE_VERSION=1.0
-
-WORKDIR /workspace
-
-RUN apk add --no-cache linux-pam-dev \
-    && wget https://github.com/tiwe-de/libpam-pwdfile/archive/refs/tags/v${LIBPAM_PWDFILE_VERSION}.tar.gz \
-    && tar zxvf v${LIBPAM_PWDFILE_VERSION}.tar.gz \
-    && cd libpam-pwdfile-${LIBPAM_PWDFILE_VERSION} \
-    && make
-
 FROM alpine:3.14
 
 LABEL Maintainer="Moritz Hein <moritz.hein@live.de>"
@@ -19,12 +7,6 @@ LABEL Description="vsftpd Docker image based on Alpine Linux 3.14. Supports pass
 	Version="1.0"
 
 RUN apk add --no-cache vsftpd
-
-#RUN yum install -y \
-#	vsftpd \
-#	db4-utils \
-#	db4 \
-#	iproute && yum clean all
 
 ENV LIBPAM_PWDFILE_VERSION=1.0
 
@@ -44,17 +26,13 @@ ENV PASV_PROMISCUOUS=NO
 ENV PORT_PROMISCUOUS=NO
 
 COPY vsftpd.conf /etc/vsftpd/
-#COPY vsftpd_virtual /etc/pam.d/
 COPY run-vsftpd.sh /usr/sbin/
 
 RUN chmod +x /usr/sbin/run-vsftpd.sh
 RUN mkdir -p /home/vsftpd/
 RUN chown -R ftp:ftp /home/vsftpd/
 
-COPY --from=builder /workspace/libpam-pwdfile-${LIBPAM_PWDFILE_VERSION}/pam_pwdfile.so /usr/lib/security/pam_pwdfile.so
-
 VOLUME /home/vsftpd
-VOLUME /var/log/vsftpd
 
 EXPOSE 20 21
 
